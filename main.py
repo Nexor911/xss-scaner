@@ -5,6 +5,7 @@ import html
 import json
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
+import webbrowser
 
 resultjson = []
 
@@ -205,6 +206,11 @@ elif save_format == "3":
         </body>
         </html>
     """
+
+    browser = input("Хотите сразу открыть HTML-отчёт в браузере? (y/n): ")
+
+    if browser == "y":
+        webbrowser.open(f"{result}.html")
 
     with open(f"{result}.html", "w", encoding="utf-8") as hf:
         hf.write(html_content)
