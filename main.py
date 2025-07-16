@@ -137,8 +137,11 @@ for payload in payloads:
             test_url = f"{url}?{param}={encoded_payload}"
             response = requests.get(test_url, headers=headers)
 
-        worked = payload in response.text
-        print(f"{'сработал' if worked else 'не сработал'} {payload}")
+        raw = payload in response.text
+        escaped = html.escape(payload) in response.text
+        worked = raw or escaped
+        status = "отражён как есть" if raw else "экранирован" if escaped else "не отражён"
+        print(f"{'сработал' if worked else 'не сработал'} ({status}) {payload}")
 
         result_entry = {
             "payload": payload,
