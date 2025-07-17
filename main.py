@@ -6,10 +6,17 @@ import json
 from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 import webbrowser
+import os
 
 resultjson = []
 
-result = f"xss_result_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+filename = f"xss_result_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+
+folder_path = "results"
+
+os.makedirs(folder_path, exist_ok=True)
+
+file_path = os.path.join(folder_path, filename)
 
 dom_payload = [
     "#<img src=x onerror=alert(1337)>",
@@ -157,12 +164,12 @@ for payload in payloads:
 test_dom_xss(url, dom_payload, resultjson)
 
 if save_format == "1":
-    with open(f"{result}.txt", "w", encoding="utf-8") as f:
+    with open(os.path.join(folder_path, f"{filename}.txt"), "w", encoding="utf-8") as f:
         for entry in resultjson:
             f.write(f"{'сработал' if entry['worked'] else 'не сработал'} {entry['payload']}\n")
 
 elif save_format == "2":
-    with open(f"{result}.json", "w", encoding="utf-8") as jf:
+    with open(os.path.join(folder_path, f"{filename}.json"), "w", encoding="utf-8") as jf:
         json.dump(resultjson, jf, ensure_ascii=False, indent=4)
 
 elif save_format == "3":
@@ -212,8 +219,10 @@ elif save_format == "3":
 
     browser = input("Хотите сразу открыть HTML-отчёт в браузере? (y/n): ")
 
-    if browser == "y":
-        webbrowser.open(f"{result}.html")
+    html_file = os.path.join(folder_path, f"{filename}.html")
 
-    with open(f"{result}.html", "w", encoding="utf-8") as hf:
+    with open(html_file, "w", encoding="utf-8") as hf:
         hf.write(html_content)
+
+    if browser == "y":
+        webbrowser.open(html_file)
