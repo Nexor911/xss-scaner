@@ -7,6 +7,7 @@ from selenium import webdriver
 from selenium.webdriver.firefox.options import Options
 import webbrowser
 import os
+import random
 
 resultjson = []
 
@@ -62,6 +63,28 @@ payloads = [
     "<script>Function('alert(1)')()</script>"
 ]
 
+user_agents = [
+    "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1) Gecko/20061121 BonEcho/2.",
+    "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.4pre) Gecko/20070410 BonEcho/2.0.0.4pre",
+    "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1) Gecko/20060930 BonEcho/2.0",
+    "Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.2pre) Gecko/20070213 BonEcho/2.0.0.2pre",
+    "Mozilla/5.0 (Linux; Android 8.0; Pixel 2 Build/OPD3.170816.012) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/40.0.4463.1220 Mobile Safari/537.36",
+    "Mozilla/5.0 (Linux; Android 12; SM-S906B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.176"
+]
+
+headers = {
+    "User-Agent": random.choice(user_agents),
+    "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1"
+}
+
 def vibor():
     print("\nВыбери формат сохранения результата\n1-TXT\n2-JSON\n3-HTML")
     choice = input(": ").strip()
@@ -106,10 +129,6 @@ method = input("Выбери метод запроса (GET или POST): ").str
 if method not in ["GET", "POST"]:
     print("Неверный метод. По умолчанию используется GET.")
     method = "GET"
-
-headers = {
-    "User-Agent": "Mozilla/5.0 (VenturaCounty; Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.6533.89"
-}
 
 url = input("Введите url (например, https://example.com): ").strip()
 def get_param():
